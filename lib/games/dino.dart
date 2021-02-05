@@ -47,7 +47,7 @@ class Dino extends GameEngine {
 
   @override
   void update(Duration lastTime, Duration currentTime) {
-    if(currentTime == null){
+    if (currentTime == null) {
       currentTime = Duration(milliseconds: 0);
     }
     currentSprite = dino[(currentTime.inMilliseconds / 100).floor() % 2 + 2];
@@ -67,7 +67,7 @@ class Dino extends GameEngine {
   void jump() {
     if (state != DinoState.jumping) {
       state = DinoState.jumping;
-      velY = 650;
+      velY = 750;
     }
   }
 

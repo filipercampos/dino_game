@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:math';
 
+import 'package:dinogame/games/sound.dart';
 import 'package:flutter/material.dart';
 
 import 'cactus.dart';
@@ -26,15 +28,24 @@ class _GamePlayState extends State<GamePlay>
   List<Ground> grounds;
 
   List<Cloud> clouds;
+  Timer _timer;
 
   @override
   void initState() {
     super.initState();
+    Sound().loadSounds();
     _initGame();
+    _startTimerVelocity();
     worldController =
         AnimationController(vsync: this, duration: Duration(days: 99));
     worldController.addListener(_update);
     worldController.forward();
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
   }
 
   void _initGame() {
@@ -65,6 +76,7 @@ class _GamePlayState extends State<GamePlay>
 
   void _die() {
     setState(() {
+      Sound().died();
       worldController.stop();
       dino.die();
     });
@@ -80,8 +92,9 @@ class _GamePlayState extends State<GamePlay>
     runDistance += runVelocity * elapsedTimeSeconds;
 
     Size screenSize = MediaQuery.of(context).size;
+    var screenCalc = Size(screenSize.width - 70, screenSize.height - 70);
 
-    Rect dinoRect = dino.getRect(screenSize, runDistance);
+    Rect dinoRect = dino.getRect(screenCalc, runDistance);
     for (Cactus cactus in cacti) {
       Rect obstacleRect = cactus.getRect(screenSize, runDistance);
       if (dinoRect.overlaps(obstacleRect)) {
@@ -91,9 +104,12 @@ class _GamePlayState extends State<GamePlay>
       if (obstacleRect.right < 0) {
         setState(() {
           cacti.remove(cactus);
-          cacti.add(Cactus(
+          cacti.add(
+            Cactus(
               worldLocation:
-                  Offset(runDistance + Random().nextInt(100) + 50, 0)));
+                  Offset(runDistance + Random().nextInt(100) + 50, 0),
+            ),
+          );
         });
       }
     }
@@ -132,7 +148,6 @@ class _GamePlayState extends State<GamePlay>
   Widget build(BuildContext context) {
     Size screenSize = MediaQuery.of(context).size;
     List<Widget> children = [];
-
     for (GameEngine object in [...clouds, ...grounds, ...cacti, dino]) {
       children.add(AnimatedBuilder(
           animation: worldController,
@@ -142,11 +157,22 @@ class _GamePlayState extends State<GamePlay>
               left: objectRect.left,
               top: objectRect.top,
               width: objectRect.width,
-              height: objectRect.height,
+              height: objectRect.height +
+                  (screenSize.height / 2.5), //abaixo do centro
               child: object.render(),
             );
           }));
     }
+
+    children.add(Align(
+      alignment: Alignment.topRight,
+      child: Container(
+        child: Text(
+          "Score:",
+          style: TextStyle(color: Colors.black),
+        ),
+      ),
+    ));
 
     return Scaffold(
       body: GestureDetector(
@@ -159,6 +185,9 @@ class _GamePlayState extends State<GamePlay>
               }
             : null,
         onTap: () {
+          if (!dino.isDead) {
+            Sound().jump();
+          }
           dino.jump();
         },
         child: Stack(
@@ -166,6 +195,23 @@ class _GamePlayState extends State<GamePlay>
           children: children,
         ),
       ),
+    );
+  }
+
+  void _startTimerVelocity() {
+    _timer = Timer.periodic(
+      Duration(seconds: 3),
+      (Timer timer) {
+        if (runVelocity == 200) {
+          setState(() {
+            timer.cancel();
+          });
+        } else {
+          setState(() {
+            runVelocity += 1;
+          });
+        }
+      },
     );
   }
 }
