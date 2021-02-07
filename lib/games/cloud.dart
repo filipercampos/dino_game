@@ -19,8 +19,8 @@ class Cloud extends GameEngine {
   @override
   Rect getRect(Size screenSize, double runDistance) {
     return Rect.fromLTWH(
-      (worldLocation.dx - runDistance) * WORLD_TO_PIXEL_RATIO / 5,
-      screenSize.height / 5 - cloudSprite.imageHeight - worldLocation.dy,
+      (worldLocation.dx - runDistance) * WORLD_TO_PIXEL_RATIO / 3.0,
+      screenSize.height / 3.5 - cloudSprite.imageHeight - worldLocation.dy,
       cloudSprite.imageWidth,
       cloudSprite.imageHeight,
     );

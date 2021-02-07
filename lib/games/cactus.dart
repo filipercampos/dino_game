@@ -34,7 +34,7 @@ class Cactus extends GameEngine {
   Rect getRect(Size screenSize, double runDistance) {
     return Rect.fromLTWH(
       (worldLocation.dx - runDistance) * WORLD_TO_PIXEL_RATIO,
-      screenSize.height / 2 - sprite.imageHeight,
+      screenSize.height / 1.4 - sprite.imageHeight,
       sprite.imageWidth,
       sprite.imageHeight,
     );

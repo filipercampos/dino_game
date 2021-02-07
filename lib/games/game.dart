@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:dinogame/games/ptera.dart';
+import 'package:dinogame/games/dino.dart';
+import 'package:dinogame/games/ptera_dino.dart';
 import 'package:dinogame/games/sound.dart';
 import 'package:flutter/material.dart';
 
 import 'cactus.dart';
 import 'cloud.dart';
-import 'dino.dart';
 import 'game_engine.dart';
 import 'ground.dart';
 
@@ -17,17 +19,19 @@ class GamePlay extends StatefulWidget {
 
 class _GamePlayState extends State<GamePlay>
     with SingleTickerProviderStateMixin {
-  Dino dino = Dino();
+  dynamic dino = Dino();
+  DinoCharacter character = DinoCharacter.dino;
+
+  Ptera ptera = Ptera(worldLocation: Offset(300, 80));
   double runDistance = 0;
   double runVelocity = 30;
   AnimationController worldController;
   Duration lastUpdateCall;
 
   List<Cactus> cacti;
-
   List<Ground> grounds;
-
   List<Cloud> clouds;
+  int _score = 0;
   Timer _timer;
 
   @override
@@ -35,7 +39,6 @@ class _GamePlayState extends State<GamePlay>
     super.initState();
     Sound().loadSounds();
     _initGame();
-    _startTimerVelocity();
     worldController =
         AnimationController(vsync: this, duration: Duration(days: 99));
     worldController.addListener(_update);
@@ -51,9 +54,9 @@ class _GamePlayState extends State<GamePlay>
   void _initGame() {
     runDistance = 0;
     runVelocity = 30;
-
+    _score = 0;
     lastUpdateCall = Duration();
-
+    ptera = Ptera(worldLocation: Offset(300, 80));
     cacti = [Cactus(worldLocation: Offset(200, 0))];
 
     grounds = [
@@ -66,9 +69,15 @@ class _GamePlayState extends State<GamePlay>
       Cloud(worldLocation: Offset(200, 10)),
       Cloud(worldLocation: Offset(350, -10)),
     ];
+    _startTimerVelocity();
   }
 
   void _restart() {
+    if (character == DinoCharacter.dino) {
+      dino = Dino();
+    } else {
+      dino = PteraDino();
+    }
     dino.revive();
     _initGame();
     worldController.forward();
@@ -91,28 +100,16 @@ class _GamePlayState extends State<GamePlay>
 
     runDistance += runVelocity * elapsedTimeSeconds;
 
+    _buildCactus();
+    _buildGrounds();
+    _buildClouds();
+    _buildPtera();
+
+    lastUpdateCall = worldController.lastElapsedDuration;
+  }
+
+  _buildGrounds() {
     Size screenSize = MediaQuery.of(context).size;
-    var screenCalc = Size(screenSize.width - 70, screenSize.height - 70);
-
-    Rect dinoRect = dino.getRect(screenCalc, runDistance);
-    for (Cactus cactus in cacti) {
-      Rect obstacleRect = cactus.getRect(screenSize, runDistance);
-      if (dinoRect.overlaps(obstacleRect)) {
-        _die();
-      }
-
-      if (obstacleRect.right < 0) {
-        setState(() {
-          cacti.remove(cactus);
-          cacti.add(
-            Cactus(
-              worldLocation:
-                  Offset(runDistance + Random().nextInt(100) + 50, 0),
-            ),
-          );
-        });
-      }
-    }
 
     for (Ground groundlet in grounds) {
       if (groundlet.getRect(screenSize, runDistance).right < 0) {
@@ -128,28 +125,74 @@ class _GamePlayState extends State<GamePlay>
         });
       }
     }
+  }
 
+  _buildCactus() {
+    Size screenSize = MediaQuery.of(context).size;
+    var screenCalc = Size(screenSize.width - 70, screenSize.height - 70);
+    Rect dinoRect = dino.getRect(screenCalc, runDistance);
+    for (Cactus cactus in cacti) {
+      Rect obstacleRect = cactus.getRect(screenSize, runDistance);
+      if (dinoRect.overlaps(obstacleRect)) {
+        _die();
+      }
+
+      if (obstacleRect.right < 0) {
+        setState(() {
+          cacti.remove(cactus);
+          cacti.add(Cactus(
+            worldLocation: Offset(runDistance + Random().nextInt(100) + 50, 0),
+          ));
+          _score += 2;
+        });
+      }
+    }
+  }
+
+  _buildClouds() {
+    Size screenSize = MediaQuery.of(context).size;
     for (Cloud cloud in clouds) {
       if (cloud.getRect(screenSize, runDistance).right < 0) {
         setState(() {
           clouds.remove(cloud);
-          clouds.add(Cloud(
+          clouds.add(
+            Cloud(
               worldLocation: Offset(
                   clouds.last.worldLocation.dx + Random().nextInt(100) + 50,
-                  Random().nextInt(40) - 20.0)));
+                  Random().nextInt(40) - 20.0),
+            ),
+          );
         });
       }
     }
+  }
 
-    lastUpdateCall = worldController.lastElapsedDuration;
+  _buildPtera() {
+    Size screenSize = MediaQuery.of(context).size;
+    Rect dinoRect = dino.getRect(screenSize, runDistance);
+    Rect obstacleRect = ptera.getRect(screenSize, runDistance);
+    if (dinoRect.overlaps(obstacleRect)) {
+      _die();
+    }
+    setState(() {
+      if (ptera.distance > 240 && ptera.distance < 255) {
+        cacti.clear();
+      } else if (cacti.isEmpty) {
+        cacti = [Cactus(worldLocation: Offset(200, 0))];
+      }
+
+      ptera.update(lastUpdateCall, worldController.lastElapsedDuration);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     Size screenSize = MediaQuery.of(context).size;
     List<Widget> children = [];
-    for (GameEngine object in [...clouds, ...grounds, ...cacti, dino]) {
-      children.add(AnimatedBuilder(
+
+    for (GameEngine object in [...clouds, ...grounds, ...cacti, dino, ptera]) {
+      children.add(
+        AnimatedBuilder(
           animation: worldController,
           builder: (context, _) {
             Rect objectRect = object.getRect(screenSize, runDistance);
@@ -157,19 +200,25 @@ class _GamePlayState extends State<GamePlay>
               left: objectRect.left,
               top: objectRect.top,
               width: objectRect.width,
-              height: objectRect.height +
-                  (screenSize.height / 2.5), //abaixo do centro
+              height: objectRect.height,
               child: object.render(),
             );
-          }));
+          },
+        ),
+      );
     }
 
     children.add(Align(
       alignment: Alignment.topRight,
       child: Container(
+        margin: EdgeInsets.all(12.0),
         child: Text(
-          "Score:",
-          style: TextStyle(color: Colors.black),
+          "Score: $_score",
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     ));
@@ -177,6 +226,84 @@ class _GamePlayState extends State<GamePlay>
     return Scaffold(
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
+        onLongPress: () async {
+          worldController.stop();
+          await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Center(child: Text('Personagens')),
+              content: Text('Selecione o personagem'),
+              actions: <Widget>[
+                SizedBox(
+                  width: MediaQuery.of(context).size.width / 2,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                character = DinoCharacter.dino;
+                              });
+                              Navigator.of(context).pop();
+                              _restart();
+                            },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  height: 100,
+                                  width: 100,
+                                  child: Image.asset(
+                                      'assets/images/dino/dino_1.png'),
+                                ),
+                                Text('T-Rex'),
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: 20),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                character = DinoCharacter.ptera;
+                              });
+                              Navigator.of(context).pop();
+                              _restart();
+                            },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  height: 100,
+                                  width: 100,
+                                  child: Image.asset(
+                                    'assets/images/ptera_right/ptera_1.png',
+                                  ),
+                                ),
+                                Text(
+                                  'Ptera',
+                                  style: TextStyle(color: Colors.black),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+          worldController.forward();
+        },
         onDoubleTap: dino.isDead
             ? () {
                 setState(() {
@@ -202,16 +329,23 @@ class _GamePlayState extends State<GamePlay>
     _timer = Timer.periodic(
       Duration(seconds: 3),
       (Timer timer) {
-        if (runVelocity == 200) {
+        if (runVelocity > 50 || dino.isDead) {
+          //pare o incremento de velocidade
           setState(() {
             timer.cancel();
           });
         } else {
           setState(() {
-            runVelocity += 1;
+            runVelocity++;
           });
         }
+        debugPrint('Speed $runVelocity');
       },
     );
   }
+}
+
+enum DinoCharacter {
+  dino,
+  ptera,
 }

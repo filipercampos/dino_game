@@ -17,7 +17,7 @@ class Ground extends GameEngine {
   Rect getRect(Size screenSize, double runDistance) {
     return Rect.fromLTWH(
       (worldLocation.dx - runDistance) * WORLD_TO_PIXEL_RATIO,
-      screenSize.height / 2 - groundSprite.imageHeight,
+      screenSize.height / 1.4 - groundSprite.imageHeight,
       groundSprite.imageWidth.toDouble(),
       groundSprite.imageHeight.toDouble(),
     );
