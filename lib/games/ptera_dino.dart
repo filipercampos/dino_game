@@ -12,6 +12,7 @@ final prefix = 'assets/images/ptera_right';
 final List<Sprite> ptera = [
   Sprite(imagePath: '$prefix/ptera_1.png', imageHeight: 80, imageWidth: 92),
   Sprite(imagePath: '$prefix/ptera_2.png', imageHeight: 80, imageWidth: 92),
+  Sprite(imagePath: '$prefix/ptera_3.png', imageHeight: 80, imageWidth: 92),
 ];
 
 class PteraDino extends GameEngine {
@@ -63,7 +64,7 @@ class PteraDino extends GameEngine {
   }
 
   void die() {
-    currentSprite = ptera[0];
+    currentSprite = ptera.last;
     state = DinoState.dead;
   }
 

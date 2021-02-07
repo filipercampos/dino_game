@@ -26,6 +26,7 @@ class _GamePlayState extends State<GamePlay>
   double runDistance = 0;
   double runVelocity = 30;
   AnimationController worldController;
+  bool stop = false;
   Duration lastUpdateCall;
 
   List<Cactus> cacti;
@@ -87,6 +88,7 @@ class _GamePlayState extends State<GamePlay>
     setState(() {
       Sound().died();
       worldController.stop();
+      stop = true;
       dino.die();
     });
   }
@@ -134,7 +136,7 @@ class _GamePlayState extends State<GamePlay>
     for (Cactus cactus in cacti) {
       Rect obstacleRect = cactus.getRect(screenSize, runDistance);
       if (dinoRect.overlaps(obstacleRect)) {
-        _die();
+        //_die();
       }
 
       if (obstacleRect.right < 0) {
@@ -147,6 +149,28 @@ class _GamePlayState extends State<GamePlay>
         });
       }
     }
+  }
+
+  _buildPtera() {
+    Size screenSize = MediaQuery.of(context).size;
+    Rect dinoRect = dino.getRect(screenSize, runDistance);
+    Rect obstacleRect = ptera.getRect(screenSize, runDistance);
+    if (dinoRect.overlaps(obstacleRect)) {
+      //  _die();
+    }
+    setState(() {
+      if (ptera.distance > 230 && ptera.distance < 290) {
+        cacti.clear();
+      } else if (cacti.isEmpty) {
+        cacti = [
+          Cactus(
+            worldLocation: Offset(runDistance + Random().nextInt(100) + 200, 0),
+          )
+        ];
+      }
+
+      ptera.update(lastUpdateCall, worldController.lastElapsedDuration);
+    });
   }
 
   _buildClouds() {
@@ -165,24 +189,6 @@ class _GamePlayState extends State<GamePlay>
         });
       }
     }
-  }
-
-  _buildPtera() {
-    Size screenSize = MediaQuery.of(context).size;
-    Rect dinoRect = dino.getRect(screenSize, runDistance);
-    Rect obstacleRect = ptera.getRect(screenSize, runDistance);
-    if (dinoRect.overlaps(obstacleRect)) {
-      _die();
-    }
-    setState(() {
-      if (ptera.distance > 240 && ptera.distance < 255) {
-        cacti.clear();
-      } else if (cacti.isEmpty) {
-        cacti = [Cactus(worldLocation: Offset(200, 0))];
-      }
-
-      ptera.update(lastUpdateCall, worldController.lastElapsedDuration);
-    });
   }
 
   @override
@@ -211,7 +217,7 @@ class _GamePlayState extends State<GamePlay>
     children.add(Align(
       alignment: Alignment.topRight,
       child: Container(
-        margin: EdgeInsets.all(12.0),
+        margin: EdgeInsets.only(right: 20.0, top: 8.0),
         child: Text(
           "Score: $_score",
           style: TextStyle(
@@ -226,84 +232,7 @@ class _GamePlayState extends State<GamePlay>
     return Scaffold(
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onLongPress: () async {
-          worldController.stop();
-          await showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Center(child: Text('Personagens')),
-              content: Text('Selecione o personagem'),
-              actions: <Widget>[
-                SizedBox(
-                  width: MediaQuery.of(context).size.width / 2,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                character = DinoCharacter.dino;
-                              });
-                              Navigator.of(context).pop();
-                              _restart();
-                            },
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  height: 100,
-                                  width: 100,
-                                  child: Image.asset(
-                                      'assets/images/dino/dino_1.png'),
-                                ),
-                                Text('T-Rex'),
-                              ],
-                            ),
-                          ),
-                          SizedBox(width: 20),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                character = DinoCharacter.ptera;
-                              });
-                              Navigator.of(context).pop();
-                              _restart();
-                            },
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  height: 100,
-                                  width: 100,
-                                  child: Image.asset(
-                                    'assets/images/ptera_right/ptera_1.png',
-                                  ),
-                                ),
-                                Text(
-                                  'Ptera',
-                                  style: TextStyle(color: Colors.black),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-          worldController.forward();
-        },
+        onLongPress: _selectCharacter,
         onDoubleTap: dino.isDead
             ? () {
                 setState(() {
@@ -329,19 +258,102 @@ class _GamePlayState extends State<GamePlay>
     _timer = Timer.periodic(
       Duration(seconds: 3),
       (Timer timer) {
-        if (runVelocity > 50 || dino.isDead) {
-          //pare o incremento de velocidade
-          setState(() {
-            timer.cancel();
-          });
-        } else {
-          setState(() {
-            runVelocity++;
-          });
+        if (worldController.isAnimating) {
+          if (runVelocity > 50 || dino.isDead) {
+            //pare o incremento de velocidade
+            setState(() {
+              timer.cancel();
+            });
+          } else {
+            setState(() {
+              runVelocity++;
+            });
+          }
         }
         debugPrint('Speed $runVelocity');
       },
     );
+  }
+
+  void _selectCharacter() async {
+    setState(() {
+      stop = true;
+    });
+    worldController.stop();
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Center(child: Text('Personagens')),
+        content: Text('Selecione o personagem'),
+        actions: <Widget>[
+          SizedBox(
+            width: MediaQuery.of(context).size.width / 2,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          character = DinoCharacter.dino;
+                        });
+                        Navigator.of(context).pop();
+                        _restart();
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            height: 100,
+                            width: 100,
+                            child: Image.asset('assets/images/dino/dino_1.png'),
+                          ),
+                          Text('T-Rex'),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 20),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          character = DinoCharacter.ptera;
+                        });
+                        Navigator.of(context).pop();
+                        _restart();
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            height: 100,
+                            width: 100,
+                            child: Image.asset(
+                              'assets/images/ptera_right/ptera_1.png',
+                            ),
+                          ),
+                          Text(
+                            'Ptera',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    worldController.forward();
   }
 }
 
